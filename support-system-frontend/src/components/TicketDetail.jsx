@@ -23,38 +23,58 @@ import {
   MessageSquare
 } from 'lucide-react';
 
-const TicketDetail = ({ ticket, onBack, onUpdate }) => {
+const TicketDetail = ({ ticketId, onBack, onUpdate }) => {
   const { user, API_BASE_URL } = useAuth();
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(false);
   const [sendingMessage, setSendingMessage] = useState(false);
   const [error, setError] = useState('');
-  const [ticketData, setTicketData] = useState(ticket);
+  const [ticketData, setTicketData] = useState(null);
   const [newStatus, setNewStatus] = useState('');
   const [assignedAgent, setAssignedAgent] = useState('');
   const [agents, setAgents] = useState([]);
   const messagesEndRef = useRef(null);
 
   useEffect(() => {
-    fetchMessages();
-    if (user?.role === 'admin') {
-      fetchAgents();
-    }
-  }, []);
+    fetchTicket();
+    // eslint-disable-next-line
+  }, [ticketId]);
 
   useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
+    if (ticketData) {
+      fetchMessages();
+      if (user?.role === 'admin') {
+        fetchAgents();
+      }
+    }
+    // eslint-disable-next-line
+  }, [ticketData]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
+  const fetchTicket = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/tickets/${ticketId}`, {
+        credentials: 'include',
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setTicketData(data);
+      } else {
+        setError('Ошибка при загрузке заявки');
+      }
+    } catch (error) {
+      setError('Ошибка сети');
+    }
+  };
+
   const fetchMessages = async () => {
     setLoading(true);
     try {
-      const response = await fetch(`${API_BASE_URL}/tickets/${ticket.id}/messages`, {
+      const response = await fetch(`${API_BASE_URL}/tickets/${ticketId}/messages`, {
         credentials: 'include',
       });
       if (response.ok) {
@@ -88,7 +108,7 @@ const TicketDetail = ({ ticket, onBack, onUpdate }) => {
 
     setSendingMessage(true);
     try {
-      const response = await fetch(`${API_BASE_URL}/tickets/${ticket.id}/messages`, {
+      const response = await fetch(`${API_BASE_URL}/tickets/${ticketId}/messages`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -112,7 +132,7 @@ const TicketDetail = ({ ticket, onBack, onUpdate }) => {
 
   const updateTicketStatus = async (status) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/tickets/${ticket.id}/status`, {
+      const response = await fetch(`${API_BASE_URL}/tickets/${ticketId}/status`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -135,7 +155,7 @@ const TicketDetail = ({ ticket, onBack, onUpdate }) => {
 
   const assignAgent = async (agentId) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/tickets/${ticket.id}/assign`, {
+      const response = await fetch(`${API_BASE_URL}/tickets/${ticketId}/assign`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -158,6 +178,7 @@ const TicketDetail = ({ ticket, onBack, onUpdate }) => {
 
   const getStatusBadge = (status) => {
     const statusConfig = {
+      'Pending Moderation': { variant: 'outline', icon: AlertCircle, label: 'На модерации' },
       'Open': { variant: 'default', icon: AlertCircle, label: 'Открыта' },
       'In Progress': { variant: 'secondary', icon: Clock, label: 'В работе' },
       'Awaiting Customer Reply': { variant: 'outline', icon: User, label: 'Ожидает ответа заказчика' },
@@ -211,6 +232,15 @@ const TicketDetail = ({ ticket, onBack, onUpdate }) => {
   const canAssignAgent = () => {
     return user?.role === 'admin';
   };
+
+  if (!ticketData) {
+    return (
+      <div className="flex items-center justify-center min-h-[200px]">
+        <Loader2 className="w-6 h-6 animate-spin mr-2" />
+        Загрузка заявки...
+      </div>
+    );
+  }
 
   return (
     <div className="p-6">
@@ -269,7 +299,7 @@ const TicketDetail = ({ ticket, onBack, onUpdate }) => {
               <>
                 <Separator className="my-4" />
                 <div className="flex flex-wrap gap-4">
-                  {canChangeStatus() && (
+                  {canChangeStatus() && ticketData.status?.name !== 'Pending Moderation' && (
                     <div className="flex items-center gap-2">
                       <Label>Статус:</Label>
                       <Select
@@ -283,6 +313,7 @@ const TicketDetail = ({ ticket, onBack, onUpdate }) => {
                           <SelectValue placeholder="Изменить статус" />
                         </SelectTrigger>
                         <SelectContent>
+                          {/* Не показываем 'Pending Moderation' для ручного выбора */}
                           <SelectItem value="In Progress">В работе</SelectItem>
                           <SelectItem value="Awaiting Customer Reply">Ожидает ответа заказчика</SelectItem>
                           <SelectItem value="Awaiting Agent Reply">Ожидает ответа исполнителя</SelectItem>
@@ -292,7 +323,6 @@ const TicketDetail = ({ ticket, onBack, onUpdate }) => {
                       </Select>
                     </div>
                   )}
-
                   {canAssignAgent() && (
                     <div className="flex items-center gap-2">
                       <Label>Исполнитель:</Label>

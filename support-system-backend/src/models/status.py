@@ -22,6 +22,7 @@ class Status(db.Model):
     def init_default_statuses():
         """Initialize default statuses if they don't exist"""
         default_statuses = [
+            {'name': 'Pending Moderation', 'description': 'Заявка ожидает модерации администратором'},
             {'name': 'Open', 'description': 'Новая заявка создана заказчиком'},
             {'name': 'In Progress', 'description': 'Исполнитель работает над заявкой'},
             {'name': 'Awaiting Customer Reply', 'description': 'Ожидается ответ заказчика'},

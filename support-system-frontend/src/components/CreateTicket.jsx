@@ -9,24 +9,26 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Alert, AlertDescription } from '@/ui/alert';
 import { Loader2, Plus, ArrowLeft } from 'lucide-react';
 
-const CreateTicket = ({ onSuccess }) => {
+const CreateTicket = ({ onTicketCreated }) => {
   const { API_BASE_URL } = useAuth();
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
-
   const [formData, setFormData] = useState({
     title: '',
     description: '',
     priority: 'Medium',
   });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState(false);
+
+  const handleCancel = () => {
+    if (onTicketCreated) onTicketCreated();
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError('');
-    setSuccess('');
-
+    setSuccess(false);
     try {
       const response = await fetch(`${API_BASE_URL}/tickets`, {
         method: 'POST',
@@ -38,18 +40,12 @@ const CreateTicket = ({ onSuccess }) => {
       });
 
       if (response.ok) {
-        setSuccess('Заявка успешно создана!');
-        setFormData({
-          title: '',
-          description: '',
-          priority: 'Medium',
-        });
+        setSuccess(true);
         setTimeout(() => {
-          onSuccess();
-        }, 1500);
+          if (onTicketCreated) onTicketCreated();
+        }, 1200);
       } else {
-        const errorData = await response.json();
-        setError(errorData.error || 'Ошибка при создании заявки');
+        setError('Ошибка при создании заявки');
       }
     } catch (error) {
       setError('Ошибка сети');
@@ -72,7 +68,7 @@ const CreateTicket = ({ onSuccess }) => {
           <Button 
             variant="ghost" 
             size="sm" 
-            onClick={onSuccess}
+            onClick={onTicketCreated}
             className="flex items-center gap-2"
           >
             <ArrowLeft className="w-4 h-4" />
@@ -154,19 +150,7 @@ const CreateTicket = ({ onSuccess }) => {
                 </Select>
               </div>
 
-              {error && (
-                <Alert variant="destructive">
-                  <AlertDescription>{error}</AlertDescription>
-                </Alert>
-              )}
-
-              {success && (
-                <Alert>
-                  <AlertDescription>{success}</AlertDescription>
-                </Alert>
-              )}
-
-              <div className="flex gap-4">
+              <div className="flex gap-2 mt-4">
                 <Button type="submit" disabled={loading} className="flex-1">
                   {loading ? (
                     <>
@@ -183,12 +167,19 @@ const CreateTicket = ({ onSuccess }) => {
                 <Button 
                   type="button" 
                   variant="outline" 
-                  onClick={onSuccess}
+                  onClick={handleCancel}
                   disabled={loading}
                 >
                   Отмена
                 </Button>
               </div>
+
+              {success && (
+                <Alert variant="success" className="mt-4">Заявка успешно создана!</Alert>
+              )}
+              {error && (
+                <Alert variant="destructive" className="mt-4">{error}</Alert>
+              )}
             </form>
           </CardContent>
         </Card>

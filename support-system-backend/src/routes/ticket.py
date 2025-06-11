@@ -28,17 +28,17 @@ def create_ticket():
     if user.role != 'customer':
         return jsonify({'error': 'Only customers can create tickets'}), 403
     
-    # Get "Open" status
-    open_status = Status.query.filter_by(name='Open').first()
-    if not open_status:
-        return jsonify({'error': 'Open status not found'}), 500
+    # Get "Pending Moderation" status
+    pending_status = Status.query.filter_by(name='Pending Moderation').first()
+    if not pending_status:
+        return jsonify({'error': 'Pending Moderation status not found'}), 500
     
     ticket = Ticket(
         customer_id=user.id,
         title=data['title'],
         description=data['description'],
         priority=data.get('priority', 'Medium'),
-        status_id=open_status.id
+        status_id=pending_status.id
     )
     
     db.session.add(ticket)
@@ -160,4 +160,30 @@ def update_ticket_priority(ticket_id):
     db.session.commit()
     
     return jsonify(ticket.to_dict())
+
+@ticket_bp.route('/tickets/stats', methods=['GET'])
+@login_required
+def ticket_stats():
+    user = User.query.get(session['user_id'])
+    query = Ticket.query
+    if user.role == 'agent':
+        query = query.filter_by(agent_id=user.id)
+    elif user.role == 'customer':
+        query = query.filter_by(customer_id=user.id)
+    tickets = query.all()
+    def count_status(name):
+        status = Status.query.filter_by(name=name).first()
+        if not status:
+            return 0
+        return sum(1 for t in tickets if t.status_id == status.id)
+    return jsonify({
+        'total': len(tickets),
+        'pending_moderation': count_status('Pending Moderation'),
+        'open': count_status('Open'),
+        'in_progress': count_status('In Progress'),
+        'awaiting_customer': count_status('Awaiting Customer Reply'),
+        'awaiting_agent': count_status('Awaiting Agent Reply'),
+        'resolved': count_status('Resolved'),
+        'closed': count_status('Closed'),
+    })
 

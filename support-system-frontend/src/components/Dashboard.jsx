@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { Button } from '@/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/ui/card';
@@ -11,7 +11,10 @@ import {
   LogOut, 
   Plus,
   Settings,
-  Bell
+  Bell,
+  AlertCircle,
+  Clock,
+  User
 } from 'lucide-react';
 import TicketList from './TicketList';
 import CreateTicket from './CreateTicket';
@@ -59,9 +62,9 @@ const Dashboard = () => {
   const renderContent = () => {
     switch (activeView) {
       case 'dashboard':
-        return <DashboardHome user={user} />;
+        return <DashboardHome user={user} setActiveView={setActiveView} />;
       case 'tickets':
-        return <TicketList onTicketSelect={handleTicketSelect} />;
+        return <TicketList onSelectTicket={handleTicketSelect} />;
       case 'create-ticket':
         return <CreateTicket onTicketCreated={() => setActiveView('tickets')} />;
       case 'ticket-detail':
@@ -71,7 +74,7 @@ const Dashboard = () => {
       case 'knowledge':
         return <KnowledgeBase />;
       default:
-        return <DashboardHome user={user} />;
+        return <DashboardHome user={user} setActiveView={setActiveView} />;
     }
   };
 
@@ -145,7 +148,23 @@ const Dashboard = () => {
   );
 };
 
-const DashboardHome = ({ user }) => {
+const DashboardHome = ({ user, setActiveView }) => {
+  const [stats, setStats] = useState(null);
+  useEffect(() => {
+    const fetchStats = async () => {
+      let url = 'http://localhost:5002/api/tickets/stats';
+      if (user?.role === 'agent') url += '?agent=me';
+      if (user?.role === 'customer') url += '?customer=me';
+      try {
+        const res = await fetch(url, { credentials: 'include' });
+        if (res.ok) setStats(await res.json());
+        else setStats({ error: 'Ошибка загрузки статистики' });
+      } catch {
+        setStats({ error: 'Ошибка загрузки статистики' });
+      }
+    };
+    fetchStats();
+  }, [user]);
   return (
     <div className="space-y-6">
       <div>
@@ -158,22 +177,29 @@ const DashboardHome = ({ user }) => {
       </div>
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        {/* Статистика по заявкам */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Роль в системе
-            </CardTitle>
-            <Settings className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">Статистика заявок</CardTitle>
+            <Ticket className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              {user?.role === 'admin' ? 'Администратор' : 
-               user?.role === 'agent' ? 'Исполнитель' : 'Заказчик'}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              {user?.role === 'admin' ? 'Полный доступ к системе' : 
-               user?.role === 'agent' ? 'Обработка заявок' : 'Создание заявок'}
-            </p>
+            {!stats ? (
+              <span className="text-gray-500">Загрузка...</span>
+            ) : stats.error ? (
+              <span className="text-red-500">{stats.error}</span>
+            ) : (
+              <ul className="text-sm space-y-1">
+                <li>Всего: <b>{stats.total}</b></li>
+                <li>На модерации: <b>{stats.pending_moderation}</b></li>
+                <li>Открытых: <b>{stats.open}</b></li>
+                <li>В работе: <b>{stats.in_progress}</b></li>
+                <li>Ожидает ответа заказчика: <b>{stats.awaiting_customer}</b></li>
+                <li>Ожидает ответа исполнителя: <b>{stats.awaiting_agent}</b></li>
+                <li>Решено: <b>{stats.resolved}</b></li>
+                <li>Закрыто: <b>{stats.closed}</b></li>
+              </ul>
+            )}
           </CardContent>
         </Card>
 
@@ -186,13 +212,17 @@ const DashboardHome = ({ user }) => {
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
+              <Button variant="outline" size="sm" className="w-full" onClick={() => setActiveView('tickets')}>
+                <Ticket className="h-4 w-4 mr-2" />
+                Все заявки
+              </Button>
               {user?.role === 'customer' && (
-                <Button size="sm" className="w-full">
+                <Button size="sm" className="w-full" onClick={() => setActiveView('create-ticket')}>
                   <Plus className="h-4 w-4 mr-2" />
                   Создать заявку
                 </Button>
               )}
-              <Button variant="outline" size="sm" className="w-full">
+              <Button variant="outline" size="sm" className="w-full" onClick={() => setActiveView('knowledge')}>
                 <BookOpen className="h-4 w-4 mr-2" />
                 База знаний
               </Button>
@@ -245,6 +275,63 @@ const DashboardHome = ({ user }) => {
               </p>
             </div>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Активные заявки */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">Активные заявки</CardTitle>
+          <Ticket className="h-4 w-4 text-muted-foreground" />
+        </CardHeader>
+        <CardContent>
+          {!stats ? (
+            <span className="text-gray-500">Загрузка...</span>
+          ) : stats.error ? (
+            <span className="text-red-500">{stats.error}</span>
+          ) : (
+            <div className="flex flex-col gap-2">
+              {stats.pending_moderation > 0 && (
+                <div className="flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 text-yellow-500" />
+                  <span className="font-medium">На модерации:</span>
+                  <span className="bg-yellow-100 text-yellow-800 rounded px-2 py-0.5 font-bold">{stats.pending_moderation}</span>
+                </div>
+              )}
+              {stats.open > 0 && (
+                <div className="flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 text-blue-500" />
+                  <span className="font-medium">Открытых:</span>
+                  <span className="bg-blue-100 text-blue-800 rounded px-2 py-0.5 font-bold">{stats.open}</span>
+                </div>
+              )}
+              {stats.in_progress > 0 && (
+                <div className="flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-green-600" />
+                  <span className="font-medium">В работе:</span>
+                  <span className="bg-green-100 text-green-800 rounded px-2 py-0.5 font-bold">{stats.in_progress}</span>
+                </div>
+              )}
+              {stats.awaiting_customer > 0 && (
+                <div className="flex items-center gap-2">
+                  <User className="w-4 h-4 text-orange-500" />
+                  <span className="font-medium">Ожидает ответа заказчика:</span>
+                  <span className="bg-orange-100 text-orange-800 rounded px-2 py-0.5 font-bold">{stats.awaiting_customer}</span>
+                </div>
+              )}
+              {stats.awaiting_agent > 0 && (
+                <div className="flex items-center gap-2">
+                  <User className="w-4 h-4 text-orange-500" />
+                  <span className="font-medium">Ожидает ответа исполнителя:</span>
+                  <span className="bg-orange-100 text-orange-800 rounded px-2 py-0.5 font-bold">{stats.awaiting_agent}</span>
+                </div>
+              )}
+              {/* Если нет активных заявок */}
+              {stats.pending_moderation + stats.open + stats.in_progress + stats.awaiting_customer + stats.awaiting_agent === 0 && (
+                <span className="text-gray-500">Нет активных заявок</span>
+              )}
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

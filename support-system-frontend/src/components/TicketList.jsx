@@ -26,10 +26,17 @@ const TicketList = ({ onSelectTicket }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [priorityFilter, setPriorityFilter] = useState('all');
+  const [agentFilter, setAgentFilter] = useState('');
+  const [sortOrder, setSortOrder] = useState('desc');
+  const [customFilters, setCustomFilters] = useState(() => {
+    const saved = localStorage.getItem(`customFilters_${user?.id}`);
+    return saved ? JSON.parse(saved) : [];
+  });
+  const [selectedCustomFilter, setSelectedCustomFilter] = useState('');
 
   useEffect(() => {
     fetchTickets();
-  }, [statusFilter, priorityFilter]);
+  }, [statusFilter, priorityFilter, agentFilter, sortOrder]);
 
   const fetchTickets = async () => {
     setLoading(true);
@@ -45,6 +52,10 @@ const TicketList = ({ onSelectTicket }) => {
       if (priorityFilter !== 'all') {
         params.append('priority', priorityFilter);
       }
+      if (agentFilter) {
+        params.append('agent', agentFilter);
+      }
+      params.append('sort', sortOrder);
 
       const response = await fetch(`${url}${params.toString()}`, {
         credentials: 'include',
@@ -65,19 +76,20 @@ const TicketList = ({ onSelectTicket }) => {
 
   const getStatusBadge = (status) => {
     const statusConfig = {
-      'Open': { variant: 'default', icon: AlertCircle, label: 'Открыта' },
-      'In Progress': { variant: 'secondary', icon: Clock, label: 'В работе' },
-      'Awaiting Customer Reply': { variant: 'outline', icon: User, label: 'Ожидает ответа заказчика' },
-      'Awaiting Agent Reply': { variant: 'outline', icon: User, label: 'Ожидает ответа исполнителя' },
-      'Resolved': { variant: 'default', icon: CheckCircle, label: 'Решена' },
-      'Closed': { variant: 'destructive', icon: XCircle, label: 'Закрыта' },
+      'Pending Moderation': { variant: 'outline', color: 'bg-yellow-100 text-yellow-800', icon: AlertCircle, label: 'На модерации' },
+      'Open': { variant: 'default', color: 'bg-blue-100 text-blue-800', icon: AlertCircle, label: 'Открыта' },
+      'In Progress': { variant: 'secondary', color: 'bg-green-100 text-green-800', icon: Clock, label: 'В работе' },
+      'Awaiting Customer Reply': { variant: 'outline', color: 'bg-orange-100 text-orange-800', icon: User, label: 'Ожидает ответа заказчика' },
+      'Awaiting Agent Reply': { variant: 'outline', color: 'bg-orange-100 text-orange-800', icon: User, label: 'Ожидает ответа исполнителя' },
+      'Resolved': { variant: 'default', color: 'bg-lime-100 text-lime-800', icon: CheckCircle, label: 'Решена' },
+      'Closed': { variant: 'destructive', color: 'bg-gray-300 text-gray-700', icon: XCircle, label: 'Закрыта' },
     };
 
     const config = statusConfig[status?.name] || { variant: 'outline', icon: AlertCircle, label: status?.name };
     const Icon = config.icon;
 
     return (
-      <Badge variant={config.variant} className="flex items-center gap-1">
+      <Badge variant={config.variant} className={`flex items-center gap-1 ${config.color}`}>
         <Icon className="w-3 h-3" />
         {config.label}
       </Badge>
@@ -101,10 +113,16 @@ const TicketList = ({ onSelectTicket }) => {
     );
   };
 
-  const filteredTickets = tickets.filter(ticket =>
-    ticket.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    ticket.description.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredTickets = tickets.filter(ticket => {
+    if (user?.role === 'agent') {
+      return ticket.agent_id === user.id && (
+        ticket.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        ticket.description.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+    return ticket.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      ticket.description.toLowerCase().includes(searchTerm.toLowerCase());
+  });
 
   const formatDate = (dateString) => {
     return new Date(dateString).toLocaleString('ru-RU', {
@@ -114,6 +132,35 @@ const TicketList = ({ onSelectTicket }) => {
       hour: '2-digit',
       minute: '2-digit',
     });
+  };
+
+  const saveCustomFilter = () => {
+    const name = prompt('Название фильтра:');
+    if (!name) return;
+    const newFilter = {
+      name,
+      status: statusFilter,
+      priority: priorityFilter,
+      search: searchTerm
+    };
+    const updated = [...customFilters, newFilter];
+    setCustomFilters(updated);
+    localStorage.setItem(`customFilters_${user?.id}` , JSON.stringify(updated));
+  };
+  const applyCustomFilter = (name) => {
+    const filter = customFilters.find(f => f.name === name);
+    if (filter) {
+      setStatusFilter(filter.status);
+      setPriorityFilter(filter.priority);
+      setSearchTerm(filter.search);
+      setSelectedCustomFilter(name);
+    }
+  };
+  const deleteCustomFilter = (name) => {
+    const updated = customFilters.filter(f => f.name !== name);
+    setCustomFilters(updated);
+    localStorage.setItem(`customFilters_${user?.id}` , JSON.stringify(updated));
+    setSelectedCustomFilter('');
   };
 
   return (
@@ -152,6 +199,7 @@ const TicketList = ({ onSelectTicket }) => {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Все статусы</SelectItem>
+            <SelectItem value="Pending Moderation">На модерации</SelectItem>
             <SelectItem value="Open">Открыта</SelectItem>
             <SelectItem value="In Progress">В работе</SelectItem>
             <SelectItem value="Awaiting Customer Reply">Ожидает ответа заказчика</SelectItem>
@@ -172,6 +220,44 @@ const TicketList = ({ onSelectTicket }) => {
             <SelectItem value="Critical">Критический</SelectItem>
           </SelectContent>
         </Select>
+        {/* Кастомный фильтр по исполнителю для админа */}
+        {user?.role === 'admin' && (
+          <Input
+            placeholder="Фильтр по исполнителю..."
+            value={agentFilter}
+            onChange={e => setAgentFilter(e.target.value)}
+            className="w-full sm:w-48"
+          />
+        )}
+        {/* Кастомная сортировка по дате */}
+        <Select value={sortOrder} onValueChange={setSortOrder}>
+          <SelectTrigger className="w-full sm:w-48">
+            <SelectValue placeholder="Сортировка" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="desc">Сначала новые</SelectItem>
+            <SelectItem value="asc">Сначала старые</SelectItem>
+          </SelectContent>
+        </Select>
+        <div className="flex flex-col gap-2">
+          <Select value={selectedCustomFilter} onValueChange={value => value === 'none' ? setSelectedCustomFilter('') : applyCustomFilter(value)}>
+            <SelectTrigger className="w-48">
+              <SelectValue placeholder="Мои фильтры" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none">Без фильтра</SelectItem>
+              {customFilters.map(f => (
+                <SelectItem key={f.name} value={f.name}>{f.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <div className="flex gap-2">
+            <Button type="button" size="sm" variant="outline" onClick={saveCustomFilter}>Сохранить фильтр</Button>
+            {selectedCustomFilter && (
+              <Button type="button" size="sm" variant="destructive" onClick={() => deleteCustomFilter(selectedCustomFilter)}>Удалить</Button>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* Content */}
@@ -196,8 +282,8 @@ const TicketList = ({ onSelectTicket }) => {
           {filteredTickets.map((ticket) => (
             <Card 
               key={ticket.id} 
-              className="cursor-pointer hover:shadow-md transition-shadow"
-              onClick={() => onSelectTicket(ticket)}
+              className={`cursor-pointer hover:shadow-md transition-shadow ${user?.role === 'agent' && ticket.agent_id === user.id ? 'border-2 border-blue-500' : ''}`}
+              onClick={() => onSelectTicket(ticket.id)}
             >
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between">
@@ -220,7 +306,9 @@ const TicketList = ({ onSelectTicket }) => {
                   <div className="flex items-center gap-4">
                     <span>Создана: {formatDate(ticket.created_at)}</span>
                     {ticket.agent && (
-                      <span>Исполнитель: {ticket.agent.username}</span>
+                      <span className={`font-bold px-2 py-1 rounded ${user?.role === 'agent' && ticket.agent_id === user.id ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 dark:bg-gray-700'}`}>
+                        Исполнитель: {ticket.agent.username}
+                      </span>
                     )}
                   </div>
                   <span>Заказчик: {ticket.customer.username}</span>

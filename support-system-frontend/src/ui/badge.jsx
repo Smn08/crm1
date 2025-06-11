@@ -10,3 +10,5 @@ export function Badge({ children, className = "", ...props }) {
     </span>
   );
 }
+
+// Badge поддерживает кастомные цвета через className (см. TicketList.jsx)

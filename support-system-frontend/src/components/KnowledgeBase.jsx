@@ -18,7 +18,7 @@ const KnowledgeBase = () => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('all');
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
@@ -42,18 +42,14 @@ const KnowledgeBase = () => {
     try {
       let url = `${API_BASE_URL}/knowledgebase`;
       const params = new URLSearchParams();
-      
       if (searchTerm) params.append('search', searchTerm);
-      if (selectedCategory) params.append('category', selectedCategory);
-      
+      if (selectedCategory && selectedCategory !== 'all') params.append('category', selectedCategory);
       if (params.toString()) {
         url += `?${params.toString()}`;
       }
-
       const response = await fetch(url, {
         credentials: 'include'
       });
-      
       if (response.ok) {
         const data = await response.json();
         setArticles(data);
@@ -172,7 +168,7 @@ const KnowledgeBase = () => {
 
   const clearFilters = () => {
     setSearchTerm('');
-    setSelectedCategory('');
+    setSelectedCategory('all');
     setTimeout(() => fetchArticles(), 100);
   };
 
@@ -290,7 +286,7 @@ const KnowledgeBase = () => {
                   <SelectValue placeholder="Все категории" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Все категории</SelectItem>
+                  <SelectItem value="all">Все категории</SelectItem>
                   {categories.map((category) => (
                     <SelectItem key={category} value={category}>
                       {category}
