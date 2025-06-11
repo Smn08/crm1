@@ -3,33 +3,37 @@
 # ---------- Build frontend ----------
 FROM node:20 AS frontend-build
 WORKDIR /app/frontend
-COPY support-system-frontend ./support-system-frontend
-WORKDIR /app/frontend/support-system-frontend
-RUN npm install -g pnpm && pnpm install && pnpm run build
+COPY support-system-frontend/package*.json ./
+COPY support-system-frontend/pnpm-lock.yaml ./
+RUN npm install -g pnpm && pnpm install
+COPY support-system-frontend/ ./
+RUN pnpm run build
 
 # ---------- Build backend ----------
-FROM python:3.11 AS backend-build
-WORKDIR /app/backend
-COPY support-system-backend ./support-system-backend
-WORKDIR /app/backend/support-system-backend
-RUN pip install --upgrade pip && pip install -r requirements.txt
-
-# ---------- Final image ----------
 FROM python:3.11-slim
 WORKDIR /app
 
 # Copy backend
-COPY --from=backend-build /app/backend/support-system-backend ./support-system-backend
-# Copy frontend static build
-COPY --from=frontend-build /app/frontend/support-system-frontend/dist ./support-system-backend/src/static
+COPY support-system-backend ./support-system-backend
+WORKDIR /app/support-system-backend
+
+# Install requirements
+RUN pip install --upgrade pip && pip install -r requirements.txt
+
+# Create static directory
+RUN mkdir -p ./src/static
+
+# Copy frontend build
+COPY --from=frontend-build /app/frontend/dist/index.html ./src/static/
+COPY --from=frontend-build /app/frontend/dist/assets ./src/static/assets/
 
 # Expose Flask port
 EXPOSE 5002
 
 # Set environment variables for Flask
-ENV FLASK_APP=support-system-backend/src/main.py
+ENV FLASK_APP=src/main.py
 ENV FLASK_RUN_PORT=5002
 ENV FLASK_ENV=production
 
 # Run Flask app
-CMD ["python", "support-system-backend/src/main.py"]
+CMD ["python", "src/main.py"]

@@ -17,12 +17,14 @@ from src.routes.status import status_bp
 from src.routes.knowledge_base import knowledge_bp
 from src.models.user import db, User
 
-app = Flask(__name__, static_folder=os.path.join(os.path.dirname(__file__), 'static'))
+app = Flask(__name__, 
+            static_folder=os.path.join(os.path.dirname(__file__), 'static'),
+            static_url_path='')
 app.config['SECRET_KEY'] = 'asdf#FGSgvasgf$5$WGT'
 
 # Enable CORS for all routes with detailed configuration
 CORS(app, 
-     origins=['http://localhost:5173', 'http://127.0.0.1:5173'],
+     origins=['http://localhost:5173', 'http://127.0.0.1:5173', 'http://localhost:5002', 'http://127.0.0.1:5002'],
      supports_credentials=True,
      allow_headers=['Content-Type', 'Authorization'],
      methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'])
@@ -49,19 +51,13 @@ with app.app_context():
 @app.route('/', defaults={'path': ''})
 @app.route('/<path:path>')
 def serve(path):
-    static_folder_path = app.static_folder
-    if static_folder_path is None:
-            return "Static folder not configured", 404
-
-    if path != "" and os.path.exists(os.path.join(static_folder_path, path)):
-        return send_from_directory(static_folder_path, path)
-    else:
-        index_path = os.path.join(static_folder_path, 'index.html')
-        if os.path.exists(index_path):
-            return send_from_directory(static_folder_path, 'index.html')
-        else:
-            return "index.html not found", 404
-
+    if path == "":
+        return send_from_directory(app.static_folder, 'index.html')
+    
+    try:
+        return send_from_directory(app.static_folder, path)
+    except:
+        return send_from_directory(app.static_folder, 'index.html')
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5002, debug=True)

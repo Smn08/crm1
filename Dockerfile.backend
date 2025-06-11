@@ -1,0 +1,21 @@
+# Dockerfile for backend only
+FROM python:3.11-slim
+WORKDIR /app
+
+# Copy backend
+COPY support-system-backend ./support-system-backend
+WORKDIR /app/support-system-backend
+
+# Install requirements
+RUN pip install --upgrade pip && pip install -r requirements.txt
+
+# Expose Flask port
+EXPOSE 5002
+
+# Set environment variables for Flask
+ENV FLASK_APP=src/main.py
+ENV FLASK_RUN_PORT=5002
+ENV FLASK_ENV=production
+
+# Run Flask app
+CMD ["python", "src/main.py"] 
