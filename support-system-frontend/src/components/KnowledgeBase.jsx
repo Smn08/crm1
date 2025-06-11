@@ -172,6 +172,10 @@ const KnowledgeBase = () => {
     setTimeout(() => fetchArticles(), 100);
   };
 
+  useEffect(() => {
+    fetchArticles();
+  }, [searchTerm, selectedCategory]);
+
   const formatContent = (content) => {
     // Simple markdown-like formatting
     return content
@@ -232,13 +236,21 @@ const KnowledgeBase = () => {
                 
                 <div className="space-y-2">
                   <Label htmlFor="new-category">Категория</Label>
-                  <Input
-                    id="new-category"
+                  <Select
                     value={newArticle.category}
-                    onChange={(e) => setNewArticle({...newArticle, category: e.target.value})}
-                    placeholder="Например: FAQ, Инструкции, Устранение неполадок"
-                    required
-                  />
+                    onValueChange={(value) => setNewArticle({...newArticle, category: value})}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Выберите категорию" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {categories.map((category) => (
+                        <SelectItem key={category} value={category}>
+                          {category}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 
                 <div className="space-y-2">
@@ -439,12 +451,21 @@ const KnowledgeBase = () => {
               
               <div className="space-y-2">
                 <Label htmlFor="edit-category">Категория</Label>
-                <Input
-                  id="edit-category"
+                <Select
                   value={editingArticle.category}
-                  onChange={(e) => setEditingArticle({...editingArticle, category: e.target.value})}
-                  required
-                />
+                  onValueChange={(value) => setEditingArticle({...editingArticle, category: value})}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Выберите категорию" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {categories.map((category) => (
+                      <SelectItem key={category} value={category}>
+                        {category}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               
               <div className="space-y-2">

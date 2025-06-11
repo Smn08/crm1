@@ -167,42 +167,36 @@ const DashboardHome = ({ user, setActiveView }) => {
   }, [user]);
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-          Добро пожаловать, {user?.username}!
-        </h1>
-        <p className="text-gray-600 dark:text-gray-400 mt-2">
-          Система технической поддержки
-        </p>
-      </div>
+      {/* Активные заявки - Основная карточка */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">Активные заявки</CardTitle>
+          <Ticket className="h-4 w-4 text-muted-foreground" />
+        </CardHeader>
+        <CardContent>
+          {!stats ? (
+            <span className="text-gray-500">Загрузка...</span>
+          ) : stats.error ? (
+            <span className="text-red-500">{stats.error}</span>
+          ) : (
+            <div className="flex flex-col gap-2">
+              {stats.awaiting_customer > 0 && (
+                <div className="flex items-center gap-2">
+                  <User className="w-4 h-4 text-orange-500" />
+                  <span className="font-medium">Ожидает ответа заказчика:</span>
+                  <span className="bg-orange-100 text-orange-800 rounded px-2 py-0.5 font-bold">{stats.awaiting_customer}</span>
+                </div>
+              )}
+              {stats.awaiting_customer === 0 && (
+                <span className="text-gray-500">Нет активных заявок</span>
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {/* Статистика по заявкам */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Статистика заявок</CardTitle>
-            <Ticket className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            {!stats ? (
-              <span className="text-gray-500">Загрузка...</span>
-            ) : stats.error ? (
-              <span className="text-red-500">{stats.error}</span>
-            ) : (
-              <ul className="text-sm space-y-1">
-                <li>Всего: <b>{stats.total}</b></li>
-                <li>На модерации: <b>{stats.pending_moderation}</b></li>
-                <li>Открытых: <b>{stats.open}</b></li>
-                <li>В работе: <b>{stats.in_progress}</b></li>
-                <li>Ожидает ответа заказчика: <b>{stats.awaiting_customer}</b></li>
-                <li>Ожидает ответа исполнителя: <b>{stats.awaiting_agent}</b></li>
-                <li>Решено: <b>{stats.resolved}</b></li>
-                <li>Закрыто: <b>{stats.closed}</b></li>
-              </ul>
-            )}
-          </CardContent>
-        </Card>
-
+      <div className="grid gap-6 md:grid-cols-3 lg:grid-cols-3">
+        {/* Быстрые действия */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
@@ -230,6 +224,7 @@ const DashboardHome = ({ user, setActiveView }) => {
           </CardContent>
         </Card>
 
+        {/* Статус системы */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
@@ -246,94 +241,38 @@ const DashboardHome = ({ user, setActiveView }) => {
             </p>
           </CardContent>
         </Card>
+
+        {/* Добро пожаловать - Информация о системе */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Добро пожаловать в систему поддержки</CardTitle>
+            <CardDescription>
+              Здесь вы можете управлять заявками, просматривать базу знаний и получать помощь
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div>
+                <h3 className="font-medium mb-2">Возможности системы:</h3>
+                <ul className="space-y-1 text-sm text-gray-600 dark:text-gray-400">
+                  <li>• Создание и отслеживание заявок</li>
+                  <li>• Система сообщений для общения с поддержкой</li>
+                  <li>• База знаний с инструкциями и FAQ</li>
+                  <li>• Автоматическое обновление статусов заявок</li>
+                  {user?.role === 'admin' && <li>• Управление пользователями и системой</li>}
+                </ul>
+              </div>
+              
+              <div>
+                <h3 className="font-medium mb-2">Нужна помощь?</h3>
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  Посетите раздел "База знаний" для получения инструкций и ответов на часто задаваемые вопросы.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Добро пожаловать в систему поддержки</CardTitle>
-          <CardDescription>
-            Здесь вы можете управлять заявками, просматривать базу знаний и получать помощь
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            <div>
-              <h3 className="font-medium mb-2">Возможности системы:</h3>
-              <ul className="space-y-1 text-sm text-gray-600 dark:text-gray-400">
-                <li>• Создание и отслеживание заявок</li>
-                <li>• Система сообщений для общения с поддержкой</li>
-                <li>• База знаний с инструкциями и FAQ</li>
-                <li>• Автоматическое обновление статусов заявок</li>
-                {user?.role === 'admin' && <li>• Управление пользователями и системой</li>}
-              </ul>
-            </div>
-            
-            <div>
-              <h3 className="font-medium mb-2">Нужна помощь?</h3>
-              <p className="text-sm text-gray-600 dark:text-gray-400">
-                Посетите раздел "База знаний" для получения инструкций и ответов на часто задаваемые вопросы.
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Активные заявки */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Активные заявки</CardTitle>
-          <Ticket className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-          {!stats ? (
-            <span className="text-gray-500">Загрузка...</span>
-          ) : stats.error ? (
-            <span className="text-red-500">{stats.error}</span>
-          ) : (
-            <div className="flex flex-col gap-2">
-              {stats.pending_moderation > 0 && (
-                <div className="flex items-center gap-2">
-                  <AlertCircle className="w-4 h-4 text-yellow-500" />
-                  <span className="font-medium">На модерации:</span>
-                  <span className="bg-yellow-100 text-yellow-800 rounded px-2 py-0.5 font-bold">{stats.pending_moderation}</span>
-                </div>
-              )}
-              {stats.open > 0 && (
-                <div className="flex items-center gap-2">
-                  <AlertCircle className="w-4 h-4 text-blue-500" />
-                  <span className="font-medium">Открытых:</span>
-                  <span className="bg-blue-100 text-blue-800 rounded px-2 py-0.5 font-bold">{stats.open}</span>
-                </div>
-              )}
-              {stats.in_progress > 0 && (
-                <div className="flex items-center gap-2">
-                  <Clock className="w-4 h-4 text-green-600" />
-                  <span className="font-medium">В работе:</span>
-                  <span className="bg-green-100 text-green-800 rounded px-2 py-0.5 font-bold">{stats.in_progress}</span>
-                </div>
-              )}
-              {stats.awaiting_customer > 0 && (
-                <div className="flex items-center gap-2">
-                  <User className="w-4 h-4 text-orange-500" />
-                  <span className="font-medium">Ожидает ответа заказчика:</span>
-                  <span className="bg-orange-100 text-orange-800 rounded px-2 py-0.5 font-bold">{stats.awaiting_customer}</span>
-                </div>
-              )}
-              {stats.awaiting_agent > 0 && (
-                <div className="flex items-center gap-2">
-                  <User className="w-4 h-4 text-orange-500" />
-                  <span className="font-medium">Ожидает ответа исполнителя:</span>
-                  <span className="bg-orange-100 text-orange-800 rounded px-2 py-0.5 font-bold">{stats.awaiting_agent}</span>
-                </div>
-              )}
-              {/* Если нет активных заявок */}
-              {stats.pending_moderation + stats.open + stats.in_progress + stats.awaiting_customer + stats.awaiting_agent === 0 && (
-                <span className="text-gray-500">Нет активных заявок</span>
-              )}
-            </div>
-          )}
-        </CardContent>
-      </Card>
     </div>
   );
 };
