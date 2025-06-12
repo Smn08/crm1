@@ -15,6 +15,7 @@ from src.routes.ticket import ticket_bp
 from src.routes.message import message_bp
 from src.routes.status import status_bp
 from src.routes.knowledge_base import knowledge_bp
+from src.routes.company import bp as company_bp
 from src.models.user import db, User
 
 app = Flask(__name__, 
@@ -35,6 +36,7 @@ app.register_blueprint(ticket_bp, url_prefix='/api')
 app.register_blueprint(message_bp, url_prefix='/api')
 app.register_blueprint(status_bp, url_prefix='/api')
 app.register_blueprint(knowledge_bp, url_prefix='/api')
+app.register_blueprint(company_bp, url_prefix='/api')
 
 # Database configuration
 app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite:///{os.path.join(os.path.dirname(__file__), 'database', 'app.db')}"

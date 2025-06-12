@@ -20,6 +20,7 @@ const UserManagement = () => {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
   const [showPasswords, setShowPasswords] = useState({});
+  const [companies, setCompanies] = useState([]);
   
   const [newUser, setNewUser] = useState({
     username: '',
@@ -32,6 +33,7 @@ const UserManagement = () => {
 
   useEffect(() => {
     fetchUsers();
+    fetchCompanies();
   }, []);
 
   const fetchUsers = async () => {
@@ -51,6 +53,13 @@ const UserManagement = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const fetchCompanies = async () => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/companies/`, { credentials: 'include' });
+      if (res.ok) setCompanies(await res.json());
+    } catch {}
   };
 
   const handleCreateUser = async (e) => {
@@ -233,6 +242,17 @@ const UserManagement = () => {
                   </SelectContent>
                 </Select>
               </div>
+              {newUser.role === 'customer' && (
+                <div className="space-y-2">
+                  <Label htmlFor="new-company">Компания</Label>
+                  <Select value={newUser.company_id || ''} onValueChange={v => setNewUser({...newUser, company_id: v})}>
+                    <SelectTrigger><SelectValue placeholder="Выберите компанию" /></SelectTrigger>
+                    <SelectContent>
+                      {companies.map(c => <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
               
               <Button type="submit" className="w-full">
                 Создать пользователя
@@ -369,6 +389,17 @@ const UserManagement = () => {
                   </SelectContent>
                 </Select>
               </div>
+              {editingUser.role === 'customer' && (
+                <div className="space-y-2">
+                  <Label htmlFor="edit-company">Компания</Label>
+                  <Select value={editingUser.company_id || ''} onValueChange={v => setEditingUser({...editingUser, company_id: v})}>
+                    <SelectTrigger><SelectValue placeholder="Выберите компанию" /></SelectTrigger>
+                    <SelectContent>
+                      {companies.map(c => <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
               
               <Button type="submit" className="w-full">
                 Обновить пользователя

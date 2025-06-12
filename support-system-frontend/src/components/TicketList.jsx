@@ -27,16 +27,26 @@ const TicketList = ({ onSelectTicket }) => {
   const [statusFilter, setStatusFilter] = useState('all');
   const [priorityFilter, setPriorityFilter] = useState('all');
   const [agentFilter, setAgentFilter] = useState('');
+  const [companyFilter, setCompanyFilter] = useState('all');
   const [sortOrder, setSortOrder] = useState('desc');
   const [customFilters, setCustomFilters] = useState(() => {
     const saved = localStorage.getItem(`customFilters_${user?.id}`);
     return saved ? JSON.parse(saved) : [];
   });
   const [selectedCustomFilter, setSelectedCustomFilter] = useState('');
+  const [companies, setCompanies] = useState([]);
 
   useEffect(() => {
     fetchTickets();
-  }, [statusFilter, priorityFilter, agentFilter, sortOrder]);
+    if (user?.role === 'admin' || user?.role === 'agent') fetchCompanies();
+  }, [statusFilter, priorityFilter, agentFilter, sortOrder, companyFilter]);
+
+  const fetchCompanies = async () => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/companies/`, { credentials: 'include' });
+      if (res.ok) setCompanies(await res.json());
+    } catch {}
+  };
 
   const fetchTickets = async () => {
     setLoading(true);
@@ -54,6 +64,9 @@ const TicketList = ({ onSelectTicket }) => {
       }
       if (agentFilter) {
         params.append('agent', agentFilter);
+      }
+      if ((user?.role === 'admin' || user?.role === 'agent') && companyFilter !== 'all') {
+        params.append('company_id', companyFilter);
       }
       params.append('sort', sortOrder);
 
@@ -114,6 +127,12 @@ const TicketList = ({ onSelectTicket }) => {
   };
 
   const filteredTickets = tickets.filter(ticket => {
+    if ((user?.role === 'admin' || user?.role === 'agent') && companyFilter !== 'all') {
+      return ticket.customer?.company?.id === Number(companyFilter) && (
+        ticket.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        ticket.description.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
     if (user?.role === 'agent') {
       return ticket.agent_id === user.id && (
         ticket.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -228,6 +247,20 @@ const TicketList = ({ onSelectTicket }) => {
             onChange={e => setAgentFilter(e.target.value)}
             className="w-full sm:w-48"
           />
+        )}
+        {/* Фильтр по компании для админа и исполнителя */}
+        {(user?.role === 'admin' || user?.role === 'agent') && (
+          <Select value={companyFilter} onValueChange={setCompanyFilter}>
+            <SelectTrigger className="w-full sm:w-48">
+              <SelectValue placeholder="Компания" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Все компании</SelectItem>
+              {companies.map(c => (
+                <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         )}
         {/* Кастомная сортировка по дате */}
         <Select value={sortOrder} onValueChange={setSortOrder}>

@@ -14,13 +14,15 @@ import {
   Bell,
   AlertCircle,
   Clock,
-  User
+  User,
+  Building2
 } from 'lucide-react';
 import TicketList from './TicketList';
 import CreateTicket from './CreateTicket';
 import TicketDetail from './TicketDetail';
 import UserManagement from './UserManagement';
 import KnowledgeBase from './KnowledgeBase';
+import CompanyManagement from './CompanyManagement';
 
 const Dashboard = () => {
   const [activeView, setActiveView] = useState('dashboard');
@@ -54,6 +56,7 @@ const Dashboard = () => {
 
     if (user?.role === 'admin') {
       baseItems.push({ id: 'users', label: 'Пользователи', icon: Users });
+      baseItems.push({ id: 'companies', label: 'Компании', icon: Building2 });
     }
 
     return baseItems;
@@ -73,6 +76,8 @@ const Dashboard = () => {
         return <UserManagement />;
       case 'knowledge':
         return <KnowledgeBase />;
+      case 'companies':
+        return <CompanyManagement />;
       default:
         return <DashboardHome user={user} setActiveView={setActiveView} />;
     }
@@ -165,114 +170,139 @@ const DashboardHome = ({ user, setActiveView }) => {
     };
     fetchStats();
   }, [user]);
+
   return (
-    <div className="space-y-6">
-      {/* Активные заявки - Основная карточка */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Активные заявки</CardTitle>
-          <Ticket className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-          {!stats ? (
-            <span className="text-gray-500">Загрузка...</span>
-          ) : stats.error ? (
-            <span className="text-red-500">{stats.error}</span>
-          ) : (
-            <div className="flex flex-col gap-2">
-              {stats.awaiting_customer > 0 && (
-                <div className="flex items-center gap-2">
-                  <User className="w-4 h-4 text-orange-500" />
-                  <span className="font-medium">Ожидает ответа заказчика:</span>
-                  <span className="bg-orange-100 text-orange-800 rounded px-2 py-0.5 font-bold">{stats.awaiting_customer}</span>
-                </div>
-              )}
-              {stats.awaiting_customer === 0 && (
-                <span className="text-gray-500">Нет активных заявок</span>
-              )}
+    <div className="space-y-8">
+      {/* Приветственный блок */}
+      <Card className="shadow-lg border-0 bg-gradient-to-r from-blue-50 to-blue-100 dark:from-gray-800 dark:to-gray-900">
+        <CardContent className="flex items-center gap-6 py-6">
+          <div className="flex-shrink-0">
+            <div className="w-16 h-16 rounded-full bg-blue-200 dark:bg-gray-700 flex items-center justify-center shadow-md">
+              <User className="w-8 h-8 text-blue-600 dark:text-blue-200" />
             </div>
-          )}
+          </div>
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-1">Здравствуйте, {user?.username}!</h2>
+            <div className="flex items-center gap-2 mb-2">
+              <Badge variant={
+                user?.role === 'admin' ? 'destructive' : 
+                user?.role === 'agent' ? 'default' : 'secondary'
+              }>
+                {user?.role === 'admin' ? 'Администратор' : 
+                 user?.role === 'agent' ? 'Исполнитель' : 'Заказчик'}
+              </Badge>
+            </div>
+            <p className="text-gray-600 dark:text-gray-300 text-sm">Добро пожаловать в систему поддержки! Здесь вы можете управлять заявками, просматривать базу знаний и получать помощь.</p>
+          </div>
         </CardContent>
       </Card>
 
-      <div className="grid gap-6 md:grid-cols-3 lg:grid-cols-3">
-        {/* Быстрые действия */}
-        <Card>
+      <div className="grid gap-8 md:grid-cols-3 lg:grid-cols-3">
+        {/* Активные заявки */}
+        <Card className="shadow-md border-0">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Быстрые действия
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <Ticket className="h-5 w-5 text-blue-500" /> Активные заявки
             </CardTitle>
-            <Bell className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            {!stats ? (
+              <span className="text-gray-500">Загрузка...</span>
+            ) : stats.error ? (
+              <span className="text-red-500">{stats.error}</span>
+            ) : (
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 text-orange-500" />
+                  <span className="font-medium">Ожидает ответа заказчика:</span>
+                  <span className="bg-orange-100 text-orange-800 rounded px-2 py-0.5 font-bold">{stats.awaiting_customer}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-blue-500" />
+                  <span className="font-medium">В работе:</span>
+                  <span className="bg-blue-100 text-blue-800 rounded px-2 py-0.5 font-bold">{stats.in_progress ?? 0}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Bell className="w-4 h-4 text-green-500" />
+                  <span className="font-medium">Ожидает ответа поддержки:</span>
+                  <span className="bg-green-100 text-green-800 rounded px-2 py-0.5 font-bold">{stats.awaiting_agent ?? 0}</span>
+                </div>
+                {stats.awaiting_customer === 0 && stats.in_progress === 0 && stats.awaiting_agent === 0 && (
+                  <span className="text-gray-500">Нет активных заявок</span>
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Быстрые действия */}
+        <Card className="shadow-md border-0">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <Settings className="h-5 w-5 text-purple-500" /> Быстрые действия
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
               <Button variant="outline" size="sm" className="w-full" onClick={() => setActiveView('tickets')}>
-                <Ticket className="h-4 w-4 mr-2" />
-                Все заявки
+                <Ticket className="h-4 w-4 mr-2" /> Все заявки
               </Button>
               {user?.role === 'customer' && (
                 <Button size="sm" className="w-full" onClick={() => setActiveView('create-ticket')}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Создать заявку
+                  <Plus className="h-4 w-4 mr-2" /> Создать заявку
                 </Button>
               )}
               <Button variant="outline" size="sm" className="w-full" onClick={() => setActiveView('knowledge')}>
-                <BookOpen className="h-4 w-4 mr-2" />
-                База знаний
+                <BookOpen className="h-4 w-4 mr-2" /> База знаний
               </Button>
             </div>
           </CardContent>
         </Card>
 
         {/* Статус системы */}
-        <Card>
+        <Card className="shadow-md border-0">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Статус системы
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <LayoutDashboard className="h-5 w-5 text-green-500" /> Статус системы
             </CardTitle>
-            <div className="h-2 w-2 bg-green-500 rounded-full"></div>
+            <div className="h-2 w-2 bg-green-500 rounded-full animate-pulse"></div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">
-              Онлайн
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Все системы работают нормально
-            </p>
-          </CardContent>
-        </Card>
-
-        {/* Добро пожаловать - Информация о системе */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Добро пожаловать в систему поддержки</CardTitle>
-            <CardDescription>
-              Здесь вы можете управлять заявками, просматривать базу знаний и получать помощь
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div>
-                <h3 className="font-medium mb-2">Возможности системы:</h3>
-                <ul className="space-y-1 text-sm text-gray-600 dark:text-gray-400">
-                  <li>• Создание и отслеживание заявок</li>
-                  <li>• Система сообщений для общения с поддержкой</li>
-                  <li>• База знаний с инструкциями и FAQ</li>
-                  <li>• Автоматическое обновление статусов заявок</li>
-                  {user?.role === 'admin' && <li>• Управление пользователями и системой</li>}
-                </ul>
-              </div>
-              
-              <div>
-                <h3 className="font-medium mb-2">Нужна помощь?</h3>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Посетите раздел "База знаний" для получения инструкций и ответов на часто задаваемые вопросы.
-                </p>
-              </div>
-            </div>
+            <div className="text-2xl font-bold text-green-600">Онлайн</div>
+            <p className="text-xs text-muted-foreground">Все системы работают нормально</p>
           </CardContent>
         </Card>
       </div>
+
+      {/* Возможности и помощь */}
+      <Card className="shadow-md border-0">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <BookOpen className="h-5 w-5 text-blue-500" /> Возможности системы
+          </CardTitle>
+          <CardDescription>
+            Кратко о том, что вы можете делать в системе
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid md:grid-cols-2 gap-8">
+            <ul className="space-y-2 text-sm text-gray-700 dark:text-gray-300">
+              <li className="flex items-center gap-2"><Ticket className="w-4 h-4 text-blue-400" />Создание и отслеживание заявок</li>
+              <li className="flex items-center gap-2"><Bell className="w-4 h-4 text-green-400" />Система сообщений для общения с поддержкой</li>
+              <li className="flex items-center gap-2"><BookOpen className="w-4 h-4 text-purple-400" />База знаний с инструкциями и FAQ</li>
+              <li className="flex items-center gap-2"><Clock className="w-4 h-4 text-yellow-400" />Автоматическое обновление статусов заявок</li>
+              {user?.role === 'admin' && <li className="flex items-center gap-2"><Users className="w-4 h-4 text-red-400" />Управление пользователями и системой</li>}
+            </ul>
+            <div>
+              <h3 className="font-medium mb-2 flex items-center gap-2"><AlertCircle className="w-4 h-4 text-orange-400" />Нужна помощь?</h3>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">Посетите раздел <b>База знаний</b> для получения инструкций и ответов на часто задаваемые вопросы.</p>
+              <Button variant="secondary" size="sm" onClick={() => setActiveView('knowledge')}>
+                <BookOpen className="h-4 w-4 mr-2" /> Перейти в базу знаний
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 };

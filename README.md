@@ -108,6 +108,7 @@ python src\main.py
 #### Frontend
 ```powershell
 cd support-system-frontend
+npm install -g pnpm
 pnpm install
 pnpm run dev --host
 ```
