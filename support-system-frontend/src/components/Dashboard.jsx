@@ -21,6 +21,7 @@ import CreateTicket from './CreateTicket';
 import TicketDetail from './TicketDetail';
 import UserManagement from './UserManagement';
 import KnowledgeBase from './KnowledgeBase';
+import MainHero from './MainHero';
 
 const Dashboard = () => {
   const [activeView, setActiveView] = useState('dashboard');
@@ -165,47 +166,75 @@ const DashboardHome = ({ user, setActiveView }) => {
     };
     fetchStats();
   }, [user]);
-  return (
-    <div className="space-y-6">
-      {/* Активные заявки - Основная карточка */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Активные заявки</CardTitle>
-          <Ticket className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-          {!stats ? (
-            <span className="text-gray-500">Загрузка...</span>
-          ) : stats.error ? (
-            <span className="text-red-500">{stats.error}</span>
-          ) : (
-            <div className="flex flex-col gap-2">
-              {stats.awaiting_customer > 0 && (
-                <div className="flex items-center gap-2">
-                  <User className="w-4 h-4 text-orange-500" />
-                  <span className="font-medium">Ожидает ответа заказчика:</span>
-                  <span className="bg-orange-100 text-orange-800 rounded px-2 py-0.5 font-bold">{stats.awaiting_customer}</span>
-                </div>
-              )}
-              {stats.awaiting_customer === 0 && (
-                <span className="text-gray-500">Нет активных заявок</span>
-              )}
-            </div>
-          )}
-        </CardContent>
-      </Card>
 
-      <div className="grid gap-6 md:grid-cols-3 lg:grid-cols-3">
-        {/* Быстрые действия */}
+  // Корректный расчет суммы активных заявок
+  const totalActive = (stats && !stats.error)
+    ? (Number(stats.in_progress ?? 0) + Number(stats.awaiting_customer ?? 0) + Number(stats.awaiting_agent ?? 0))
+    : 0;
+
+  return (
+    <div className="space-y-10">
+      {/* Приветствие и статистика в одну горизонтальную линию */}
+      <section className="w-full flex flex-col gap-6 mb-8">
+        <div className="flex flex-col md:flex-row items-center gap-6 w-full">
+          {/* Приветствие — без карточки, просто текст */}
+          <div className="flex-1 min-w-[220px]">
+            <h1 className="text-3xl md:text-4xl font-extrabold text-gray-900 dark:text-white mb-2">
+              Добро пожаловать в <span className="text-blue-600 dark:text-blue-400">CRM поддержку</span>
+            </h1>
+            <p className="text-base text-gray-700 dark:text-gray-300 max-w-2xl">
+              Единая платформа для управления заявками, общения с поддержкой и поиска ответов в базе знаний. Всё для эффективной работы вашей команды и быстрого решения проблем.
+            </p>
+          </div>
+          {/* Статистика — компактная горизонтальная карточка */}
+          <div className="flex-1 flex flex-col items-center justify-center bg-white dark:bg-gray-900 rounded-2xl shadow-lg p-6 border border-blue-200 dark:border-gray-800 min-w-[260px] max-w-xs w-full">
+            <h2 className="text-lg font-bold mb-1 text-blue-700 dark:text-blue-300">Активные заявки</h2>
+            {!stats ? (
+              <span className="text-gray-500">Загрузка...</span>
+            ) : stats.error ? (
+              <span className="text-red-500">{stats.error}</span>
+            ) : (
+              <>
+                <div className="text-4xl font-extrabold text-blue-600 dark:text-blue-400 mb-1">{totalActive}</div>
+                <div className="text-sm text-gray-600 dark:text-gray-300 mb-2">Всего в работе</div>
+                <div className="flex flex-col gap-1 w-full text-xs">
+                  <div className="flex items-center justify-between w-full">
+                    <span className="font-medium text-gray-700 dark:text-gray-200">Ожидает клиента:</span>
+                    <span className="bg-orange-100 text-orange-800 rounded px-2 py-0.5 font-bold">{stats.awaiting_customer ?? 0}</span>
+                  </div>
+                  <div className="flex items-center justify-between w-full">
+                    <span className="font-medium text-gray-700 dark:text-gray-200">Ожидает исполнителя:</span>
+                    <span className="bg-yellow-100 text-yellow-800 rounded px-2 py-0.5 font-bold">{stats.awaiting_agent ?? 0}</span>
+                  </div>
+                  <div className="flex items-center justify-between w-full">
+                    <span className="font-medium text-gray-700 dark:text-gray-200">В работе:</span>
+                    <span className="bg-green-100 text-green-800 rounded px-2 py-0.5 font-bold">{stats.in_progress ?? 0}</span>
+                  </div>
+                </div>
+                <button
+                  className="mt-4 w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors text-sm"
+                  onClick={() => setActiveView('tickets')}
+                >
+                  Перейти к активным заявкам
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      </section>
+      {/* Остальной контент */}
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-2">
+        {/* Быстрые действия и статус системы */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Быстрые действия
-            </CardTitle>
-            <Bell className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">Быстрые действия и статус системы</CardTitle>
+            <div className="flex items-center gap-2">
+              <Bell className="h-4 w-4 text-muted-foreground" />
+              <div className="h-2 w-2 bg-green-500 rounded-full" title="Онлайн"></div>
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="space-y-2">
+            <div className="space-y-2 mb-4">
               <Button variant="outline" size="sm" className="w-full" onClick={() => setActiveView('tickets')}>
                 <Ticket className="h-4 w-4 mr-2" />
                 Все заявки
@@ -221,27 +250,12 @@ const DashboardHome = ({ user, setActiveView }) => {
                 База знаний
               </Button>
             </div>
-          </CardContent>
-        </Card>
-
-        {/* Статус системы */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Статус системы
-            </CardTitle>
-            <div className="h-2 w-2 bg-green-500 rounded-full"></div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600">
-              Онлайн
-            </div>
-            <p className="text-xs text-muted-foreground">
+            <div className="text-xs text-muted-foreground">
+              <div className="text-green-600 font-bold mb-1">Онлайн</div>
               Все системы работают нормально
-            </p>
+            </div>
           </CardContent>
         </Card>
-
         {/* Добро пожаловать - Информация о системе */}
         <Card>
           <CardHeader>
@@ -262,7 +276,6 @@ const DashboardHome = ({ user, setActiveView }) => {
                   {user?.role === 'admin' && <li>• Управление пользователями и системой</li>}
                 </ul>
               </div>
-              
               <div>
                 <h3 className="font-medium mb-2">Нужна помощь?</h3>
                 <p className="text-sm text-gray-600 dark:text-gray-400">

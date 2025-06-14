@@ -4,6 +4,7 @@ from src.models.ticket import Ticket
 from src.models.status import Status
 from src.routes.user import login_required, admin_required
 from functools import wraps
+from telegram_notify import send_telegram_message
 
 ticket_bp = Blueprint('ticket', __name__)
 
@@ -40,9 +41,19 @@ def create_ticket():
         priority=data.get('priority', 'Medium'),
         status_id=pending_status.id
     )
-    
     db.session.add(ticket)
     db.session.commit()
+    
+    # Формируем расширенное уведомление
+    customer_name = user.username
+    customer_email = user.email
+    company = getattr(user, 'company', None) or 'Не указана'
+    msg = f"<b>Новая заявка #{ticket.id}</b>\n" \
+          f"<b>Тема:</b> {ticket.title}\n" \
+          f"<b>Описание:</b> {ticket.description}\n" \
+          f"<b>Заказчик:</b> {customer_name} ({customer_email})\n" \
+          f"<b>Компания:</b> {company}"
+    send_telegram_message(msg)
     
     return jsonify(ticket.to_dict()), 201
 
@@ -118,6 +129,10 @@ def assign_ticket(ticket_id):
     
     db.session.commit()
     
+    # Уведомление о назначении исполнителя
+    msg = f"<b>Заявка #{ticket.id}</b> назначена исполнителю: <b>{agent.username}</b>"
+    send_telegram_message(msg)
+    
     return jsonify(ticket.to_dict())
 
 @ticket_bp.route('/tickets/<int:ticket_id>/status', methods=['PUT'])
@@ -131,6 +146,7 @@ def update_ticket_status(ticket_id):
     if user.role == 'agent' and ticket.agent_id != user.id:
         return jsonify({'error': 'Access denied'}), 403
     
+    old_status = ticket.status.name if ticket.status else ''
     new_status = Status.query.filter_by(name=data['status']).first()
     if not new_status:
         return jsonify({'error': 'Invalid status'}), 400
@@ -143,6 +159,12 @@ def update_ticket_status(ticket_id):
         ticket.closed_at = datetime.utcnow()
     
     db.session.commit()
+    
+    # Уведомление о закрытии заявки
+    if data['status'] == 'Closed':
+        msg = f"<b>Заявка #{ticket.id}</b> закрыта!"\
+              f"\nТема: {ticket.title}"
+        send_telegram_message(msg)
     
     return jsonify(ticket.to_dict())
 

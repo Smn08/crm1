@@ -17,6 +17,8 @@ class User(db.Model):
     created_tickets = db.relationship('Ticket', foreign_keys='Ticket.customer_id', backref='customer', lazy='dynamic')
     assigned_tickets = db.relationship('Ticket', foreign_keys='Ticket.agent_id', backref='agent', lazy='dynamic')
     messages = db.relationship('Message', backref='sender', lazy='dynamic')
+    company_id = db.Column(db.Integer, db.ForeignKey('company.id'), nullable=True)
+    company = db.relationship('Company', backref='users')
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
@@ -33,6 +35,7 @@ class User(db.Model):
             'username': self.username,
             'email': self.email,
             'role': self.role,
+            'company': self.company.to_dict() if self.company else None,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None
         }
@@ -55,3 +58,18 @@ class User(db.Model):
             customer.set_password("password123")
             db.session.add(customer)
         db.session.commit()
+
+class Company(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(120), unique=True, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def __repr__(self):
+        return f'<Company {self.name}>'
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'name': self.name,
+            'created_at': self.created_at.isoformat() if self.created_at else None
+        }

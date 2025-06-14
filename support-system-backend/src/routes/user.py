@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify, session
 from werkzeug.security import check_password_hash, generate_password_hash
-from src.models.user import db, User
+from src.models.user import db, User, Company
 from functools import wraps
 
 user_bp = Blueprint('user', __name__)
@@ -85,45 +85,27 @@ def get_users():
         return jsonify({'error': str(e)}), 500
 
 @user_bp.route('/users', methods=['POST'])
+@admin_required
 def create_user():
     """Create a new user (admin only)"""
     try:
-        # Check if user is logged in and is admin
-        if 'user_id' not in session:
-            return jsonify({'error': 'Authentication required'}), 401
-        
-        user = User.query.get(session['user_id'])
-        if not user or user.role != 'admin':
-            return jsonify({'error': 'Admin access required'}), 403
-        
-        data = request.get_json()
-        
-        if not data or not data.get('username') or not data.get('email') or not data.get('password') or not data.get('role'):
-            return jsonify({'error': 'Username, email, password, and role are required'}), 400
-        
-        # Check if username already exists
-        if User.query.filter_by(username=data['username']).first():
-            return jsonify({'error': 'Username already exists'}), 400
-        
-        # Check if email already exists
-        if User.query.filter_by(email=data['email']).first():
-            return jsonify({'error': 'Email already exists'}), 400
-        
-        # Validate role
-        if data['role'] not in ['customer', 'agent', 'admin']:
-            return jsonify({'error': 'Invalid role'}), 400
-        
-        new_user = User(
-            username=data['username'],
-            email=data['email'],
-            password_hash=generate_password_hash(data['password']),
-            role=data['role']
-        )
-        
-        db.session.add(new_user)
+        data = request.json
+        username = data.get('username')
+        email = data.get('email')
+        password = data.get('password')
+        role = data.get('role', 'customer')
+        company_id = data.get('company_id')
+        if not username or not email or not password:
+            return jsonify({'error': 'Все поля обязательны'}), 400
+        if User.query.filter_by(username=username).first():
+            return jsonify({'error': 'Пользователь с таким именем уже существует'}), 400
+        if User.query.filter_by(email=email).first():
+            return jsonify({'error': 'Пользователь с таким email уже существует'}), 400
+        user = User(username=username, email=email, role=role, company_id=company_id)
+        user.set_password(password)
+        db.session.add(user)
         db.session.commit()
-        
-        return jsonify(new_user.to_dict()), 201
+        return jsonify(user.to_dict()), 201
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
@@ -198,6 +180,35 @@ def delete_user(user_id):
         db.session.commit()
         
         return jsonify({'message': 'User deleted successfully'})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+@user_bp.route('/companies', methods=['GET'])
+@admin_required
+def get_companies():
+    """Get all companies (admin only)"""
+    try:
+        companies = Company.query.order_by(Company.name).all()
+        return jsonify([c.to_dict() for c in companies])
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@user_bp.route('/companies', methods=['POST'])
+@admin_required
+def create_company():
+    """Create a new company (admin only)"""
+    try:
+        data = request.json
+        name = data.get('name')
+        if not name:
+            return jsonify({'error': 'Company name is required'}), 400
+        if Company.query.filter_by(name=name).first():
+            return jsonify({'error': 'Company with this name already exists'}), 400
+        company = Company(name=name)
+        db.session.add(company)
+        db.session.commit()
+        return jsonify(company.to_dict()), 201
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
