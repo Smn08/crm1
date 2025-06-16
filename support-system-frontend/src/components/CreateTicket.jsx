@@ -1,13 +1,22 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { Button } from '@/ui/button';
 import { Input } from '@/ui/input';
 import { Label } from '@/ui/label';
-import { Textarea } from '@/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/ui/select';
 import { Alert, AlertDescription } from '@/ui/alert';
-import { Loader2, Plus, ArrowLeft } from 'lucide-react';
+import { 
+  Loader2, Plus, ArrowLeft, Image as ImageIcon, Bold, Italic, 
+  List, ListOrdered, Link2, Quote, Code, Heading1, Heading2,
+  Undo, Redo, AlignLeft, AlignCenter, AlignRight
+} from 'lucide-react';
+import { useEditor, EditorContent } from '@tiptap/react';
+import StarterKit from '@tiptap/starter-kit';
+import Image from '@tiptap/extension-image';
+import Link from '@tiptap/extension-link';
+import TextAlign from '@tiptap/extension-text-align';
+import { useDropzone } from 'react-dropzone';
 
 const CreateTicket = ({ onTicketCreated }) => {
   const { API_BASE_URL } = useAuth();
@@ -15,13 +24,117 @@ const CreateTicket = ({ onTicketCreated }) => {
     title: '',
     description: '',
     priority: 'Medium',
+    attachments: []
   });
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState(false);
+  const editor = useEditor({
+    extensions: [
+      StarterKit.configure({
+        heading: {
+          levels: [1, 2]
+        }
+      }),
+      Image.configure({
+        HTMLAttributes: {
+          class: 'max-w-full rounded-lg',
+        },
+      }),
+      Link.configure({
+        openOnClick: false,
+        HTMLAttributes: {
+          class: 'text-blue-500 hover:text-blue-700 underline',
+        },
+      }),
+      TextAlign.configure({
+        types: ['heading', 'paragraph'],
+      }),
+    ],
+    content: '',
+    onUpdate: ({ editor }) => {
+      handleInputChange('description', editor.getHTML());
+    },
+    editorProps: {
+      attributes: {
+        class: 'prose prose-sm sm:prose lg:prose-lg xl:prose-xl focus:outline-none',
+      },
+    },
+  });
 
-  const handleCancel = () => {
-    if (onTicketCreated) onTicketCreated();
+  const setLink = useCallback(() => {
+    const url = window.prompt('URL:');
+    if (url) {
+      editor.chain().focus().setLink({ href: url }).run();
+    }
+  }, [editor]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');  const [success, setSuccess] = useState(false);
+
+  const handleEditorChange = (content) => {
+    handleInputChange('description', content);
+  };
+
+  const addImage = useCallback(
+    (file) => {
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          editor.chain().focus().setImage({ src: e.target.result }).run();
+          // Also add to form attachments
+          setFormData(prev => ({
+            ...prev,
+            attachments: [...prev.attachments, file]
+          }));
+        };
+        reader.readAsDataURL(file);
+      }
+    },
+    [editor]
+  );
+
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop: (acceptedFiles) => {
+      const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'application/pdf', 'text/plain'];
+      const maxSize = 5 * 1024 * 1024; // 5MB
+
+      acceptedFiles.forEach(file => {
+        if (!allowedTypes.includes(file.type)) {
+          setError(`Файл ${file.name} имеет неподдерживаемый формат`);
+          return;
+        }
+        if (file.size > maxSize) {
+          setError(`Файл ${file.name} превышает максимальный размер 5MB`);
+          return;
+        }
+
+        if (file.type.startsWith('image/')) {
+          addImage(file);
+        } else {
+          setFormData(prev => ({
+            ...prev,
+            attachments: [...prev.attachments, file]
+          }));
+        }
+      });
+    },
+    accept: {
+      'image/*': ['.jpeg', '.jpg', '.png', '.gif'],
+      'application/pdf': ['.pdf'],
+      'text/plain': ['.txt']
+    },
+    maxSize: 5 * 1024 * 1024
+  });
+
+  const removeAttachment = (index) => {
+    setFormData(prev => ({
+      ...prev,
+      attachments: prev.attachments.filter((_, i) => i !== index)
+    }));
+  };
+
+  const handleInputChange = (field, value) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: value
+    }));
   };
 
   const handleSubmit = async (e) => {
@@ -29,14 +142,20 @@ const CreateTicket = ({ onTicketCreated }) => {
     setLoading(true);
     setError('');
     setSuccess(false);
+
+    const formDataToSend = new FormData();
+    formDataToSend.append('title', formData.title);
+    formDataToSend.append('description', formData.description);
+    formDataToSend.append('priority', formData.priority);
+    formData.attachments.forEach((file) => {
+      formDataToSend.append('attachments', file);
+    });
+
     try {
       const response = await fetch(`${API_BASE_URL}/tickets`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
         credentials: 'include',
-        body: JSON.stringify(formData),
+        body: formDataToSend,
       });
 
       if (response.ok) {
@@ -45,20 +164,14 @@ const CreateTicket = ({ onTicketCreated }) => {
           if (onTicketCreated) onTicketCreated();
         }, 1200);
       } else {
-        setError('Ошибка при создании заявки');
+        const errorData = await response.json();
+        setError(errorData.error || 'Ошибка при создании заявки');
       }
     } catch (error) {
       setError('Ошибка сети');
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleInputChange = (field, value) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value
-    }));
   };
 
   return (
@@ -101,15 +214,230 @@ const CreateTicket = ({ onTicketCreated }) => {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="description">Подробное описание *</Label>
-                <Textarea
-                  id="description"
-                  placeholder="Подробно опишите проблему, шаги для воспроизведения, ожидаемый результат..."
-                  value={formData.description}
-                  onChange={(e) => handleInputChange('description', e.target.value)}
-                  rows={6}
-                  required
-                />
+                <Label>Описание *</Label>
+                <div className="flex flex-wrap gap-2 p-2 mb-2 border rounded-md bg-white sticky top-0 z-10 shadow-sm">
+                  <div className="flex gap-1 items-center border-r pr-2 mr-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
+                      className={editor.isActive('heading', { level: 1 }) ? 'bg-secondary' : ''}
+                      title="Заголовок 1"
+                    >
+                      <Heading1 className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
+                      className={editor.isActive('heading', { level: 2 }) ? 'bg-secondary' : ''}
+                      title="Заголовок 2"
+                    >
+                      <Heading2 className="w-4 h-4" />
+                    </Button>
+                  </div>
+
+                  <div className="flex gap-1 items-center border-r pr-2 mr-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => editor.chain().focus().toggleBold().run()}
+                      className={editor.isActive('bold') ? 'bg-secondary' : ''}
+                      title="Жирный"
+                    >
+                      <Bold className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => editor.chain().focus().toggleItalic().run()}
+                      className={editor.isActive('italic') ? 'bg-secondary' : ''}
+                      title="Курсив"
+                    >
+                      <Italic className="w-4 h-4" />
+                    </Button>
+                  </div>
+
+                  <div className="flex gap-1 items-center border-r pr-2 mr-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => editor.chain().focus().toggleBulletList().run()}
+                      className={editor.isActive('bulletList') ? 'bg-secondary' : ''}
+                      title="Маркированный список"
+                    >
+                      <List className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => editor.chain().focus().toggleOrderedList().run()}
+                      className={editor.isActive('orderedList') ? 'bg-secondary' : ''}
+                      title="Нумерованный список"
+                    >
+                      <ListOrdered className="w-4 h-4" />
+                    </Button>
+                  </div>
+
+                  <div className="flex gap-1 items-center border-r pr-2 mr-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => editor.chain().focus().toggleBlockquote().run()}
+                      className={editor.isActive('blockquote') ? 'bg-secondary' : ''}
+                      title="Цитата"
+                    >
+                      <Quote className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => editor.chain().focus().toggleCodeBlock().run()}
+                      className={editor.isActive('codeBlock') ? 'bg-secondary' : ''}
+                      title="Блок кода"
+                    >
+                      <Code className="w-4 h-4" />
+                    </Button>
+                  </div>
+
+                  <div className="flex gap-1 items-center border-r pr-2 mr-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={setLink}
+                      className={editor.isActive('link') ? 'bg-secondary' : ''}
+                      title="Вставить ссылку"
+                    >
+                      <Link2 className="w-4 h-4" />
+                    </Button>
+                  </div>
+
+                  <div className="flex gap-1 items-center border-r pr-2 mr-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => editor.chain().focus().setTextAlign('left').run()}
+                      className={editor.isActive({ textAlign: 'left' }) ? 'bg-secondary' : ''}
+                      title="По левому краю"
+                    >
+                      <AlignLeft className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => editor.chain().focus().setTextAlign('center').run()}
+                      className={editor.isActive({ textAlign: 'center' }) ? 'bg-secondary' : ''}
+                      title="По центру"
+                    >
+                      <AlignCenter className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => editor.chain().focus().setTextAlign('right').run()}
+                      className={editor.isActive({ textAlign: 'right' }) ? 'bg-secondary' : ''}
+                      title="По правому краю"
+                    >
+                      <AlignRight className="w-4 h-4" />
+                    </Button>
+                  </div>
+
+                  <div className="flex gap-1 items-center">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => editor.chain().focus().undo().run()}
+                      disabled={!editor?.can().undo()}
+                      title="Отменить"
+                    >
+                      <Undo className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => editor.chain().focus().redo().run()}
+                      disabled={!editor?.can().redo()}
+                      title="Повторить"
+                    >
+                      <Redo className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
+                
+                <div className="relative">
+                  <EditorContent 
+                    editor={editor} 
+                    className="min-h-[200px] border rounded-md p-3 prose prose-sm sm:prose lg:prose-lg max-w-none bg-white" 
+                  />
+                  <div 
+                    {...getRootProps()} 
+                    className="absolute inset-0 pointer-events-none border-2 border-dashed border-transparent transition-colors rounded-md"
+                    style={{
+                      pointerEvents: isDragActive ? 'auto' : 'none',
+                      backgroundColor: isDragActive ? 'rgba(0, 0, 0, 0.1)' : 'transparent',
+                      borderColor: isDragActive ? 'rgba(0, 0, 0, 0.2)' : 'transparent'
+                    }}
+                  >
+                    <input {...getInputProps()} />
+                    {isDragActive && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 text-white">
+                        <p>Перетащите файлы сюда</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Вложения</Label>
+                <div
+                  {...getRootProps()}
+                  className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer
+                    ${isDragActive ? 'border-primary bg-primary/5' : 'border-gray-300'}`}
+                >
+                  <input {...getInputProps()} />
+                  <div className="flex flex-col items-center gap-2">
+                    <ImageIcon className="w-8 h-8 text-gray-400" />
+                    <p>Перетащите файлы сюда или кликните для выбора</p>
+                    <p className="text-sm text-gray-500">
+                      Поддерживаемые форматы: JPG, PNG, GIF, PDF, TXT (макс. 5MB)
+                    </p>
+                  </div>
+                </div>
+                {formData.attachments.length > 0 && (
+                  <div className="mt-4 space-y-2">
+                    <Label>Прикрепленные файлы:</Label>
+                    <div className="space-y-2">
+                      {formData.attachments.map((file, index) => (
+                        <div key={index} className="flex items-center justify-between p-2 border rounded">
+                          <span className="truncate">{file.name}</span>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => removeAttachment(index)}
+                          >
+                            Удалить
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="space-y-2">
@@ -119,82 +447,47 @@ const CreateTicket = ({ onTicketCreated }) => {
                   onValueChange={(value) => handleInputChange('priority', value)}
                 >
                   <SelectTrigger>
-                    <SelectValue />
+                    <SelectValue placeholder="Выберите приоритет" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Low">
-                      <div className="flex items-center gap-2">
-                        <div className="w-2 h-2 rounded-full bg-green-500"></div>
-                        Низкий - Общие вопросы
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="Medium">
-                      <div className="flex items-center gap-2">
-                        <div className="w-2 h-2 rounded-full bg-yellow-500"></div>
-                        Средний - Стандартные проблемы
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="High">
-                      <div className="flex items-center gap-2">
-                        <div className="w-2 h-2 rounded-full bg-orange-500"></div>
-                        Высокий - Важные проблемы
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="Critical">
-                      <div className="flex items-center gap-2">
-                        <div className="w-2 h-2 rounded-full bg-red-500"></div>
-                        Критический - Блокирующие проблемы
-                      </div>
-                    </SelectItem>
+                    <SelectItem value="Low">Низкий</SelectItem>
+                    <SelectItem value="Medium">Средний</SelectItem>
+                    <SelectItem value="High">Высокий</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
-              <div className="flex gap-2 mt-4">
-                <Button type="submit" disabled={loading} className="flex-1">
-                  {loading ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Создание...
-                    </>
-                  ) : (
-                    <>
-                      <Plus className="mr-2 h-4 w-4" />
-                      Создать заявку
-                    </>
-                  )}
-                </Button>
-                <Button 
-                  type="button" 
-                  variant="outline" 
-                  onClick={handleCancel}
-                  disabled={loading}
+              {error && (
+                <Alert variant="destructive">
+                  <AlertDescription>{error}</AlertDescription>
+                </Alert>
+              )}
+
+              <div className="flex justify-end gap-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={onTicketCreated}
                 >
                   Отмена
                 </Button>
+                <Button
+                  type="submit"
+                  disabled={loading || !formData.title || !formData.description}
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Создание...
+                    </>
+                  ) : (
+                    'Создать заявку'
+                  )}
+                </Button>
               </div>
-
-              {success && (
-                <Alert variant="success" className="mt-4">Заявка успешно создана!</Alert>
-              )}
-              {error && (
-                <Alert variant="destructive" className="mt-4">{error}</Alert>
-              )}
             </form>
           </CardContent>
         </Card>
-
-        <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-          <h3 className="font-medium text-blue-900 dark:text-blue-100 mb-2">
-            Советы по созданию заявки:
-          </h3>
-          <ul className="text-sm text-blue-800 dark:text-blue-200 space-y-1">
-            <li>• Используйте понятный и описательный заголовок</li>
-            <li>• Укажите шаги для воспроизведения проблемы</li>
-            <li>• Опишите ожидаемый и фактический результат</li>
-            <li>• Выберите подходящий приоритет для быстрой обработки</li>
-          </ul>
-        </div>
       </div>
     </div>
   );

@@ -1,0 +1,19 @@
+Custom License – Non-Commercial Use Only
+
+Copyright (c) github.com/Smn08, 2025
+
+Permission is hereby granted to any person obtaining a copy of this software and associated documentation files (the "Software"), to use, copy, modify, and distribute the Software for non-commercial purposes only, subject to the following conditions:
+
+1. The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+2. Commercial use of the Software is strictly prohibited without prior written permission from the copyright holder. This includes, but is not limited to, use in proprietary software, SaaS platforms, or any for-profit activities.
+
+3. Any modified versions or derivative works of the Software that are distributed must be made available under the same terms as this license, and accompanied by full source code.
+
+4. The Software is provided "as is", without warranty of any kind, express or implied, including but not limited to the warranties of merchantability, fitness for a particular purpose and noninfringement. In no event shall the author be liable for any claim, damages or other liability arising from the use of the Software.
+
+5. This Software is intended solely for lawful use, such as load testing and research purposes, by authorized users on systems they own or have explicit permission to test. The Software must not be used for unauthorized attacks, denial-of-service operations, or any activities prohibited by applicable law.  
+
+This is not a virus, malware, or illegal tool.
+
+For inquiries regarding commercial licensing, contact: staratushko@ya.ru 

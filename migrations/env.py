@@ -5,9 +5,29 @@ from sqlalchemy import pool
 
 from alembic import context
 
+import os
+import sys
+
+# Add the project root directory to the Python path
+current_dir = os.path.dirname(os.path.dirname(__file__))
+sys.path.insert(0, current_dir)
+src_path = os.path.join(current_dir, 'support-system-backend', 'src')
+sys.path.insert(0, os.path.dirname(src_path))
+
+from src.extensions import db
+from src.models.user import User
+from src.models.ticket import Ticket
+from src.models.message import Message
+from src.models.status import Status
+from src.models.knowledge_base import KnowledgeBaseArticle
+
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
+
+# Get the database URL from environment variable or use a default
+db_url = os.getenv("DATABASE_URL", "sqlite:///support-system-backend/src/database/app.db")
+config.set_main_option("sqlalchemy.url", db_url)
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.
@@ -16,15 +36,12 @@ if config.config_file_name is not None:
 
 # add your model's MetaData object here
 # for 'autogenerate' support
-# from myapp import mymodel
-# target_metadata = mymodel.Base.metadata
-target_metadata = None
+target_metadata = db.Model.metadata
 
 # other values from the config, defined by the needs of env.py,
 # can be acquired:
 # my_important_option = config.get_main_option("my_important_option")
 # ... etc.
-
 
 def run_migrations_offline() -> None:
     """Run migrations in 'offline' mode.
@@ -65,7 +82,8 @@ def run_migrations_online() -> None:
 
     with connectable.connect() as connection:
         context.configure(
-            connection=connection, target_metadata=target_metadata
+            connection=connection, 
+            target_metadata=target_metadata
         )
 
         with context.begin_transaction():

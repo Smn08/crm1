@@ -60,29 +60,33 @@ def allowed_file(file):
 def save_file(file, ticket_id):
     if not file:
         return None
-        
-    try:
+          try:
         filename = secure_filename(file.filename)
+        # Генерируем уникальное имя файла
         unique_filename = f"{uuid.uuid4()}_{filename}"
         
+        # Создаем папку для файлов заявки, если её нет
         upload_folder = os.path.join(current_app.config['UPLOAD_FOLDER'], str(ticket_id))
         os.makedirs(upload_folder, exist_ok=True)
         
         file_path = os.path.join(upload_folder, unique_filename)
         
+        # Для изображений делаем обработку
         mime_type = mimetypes.guess_type(filename)[0]
         if mime_type and mime_type.startswith('image/'):
             img = Image.open(file)
+            # Convert to RGB if image is in RGBA mode
             if img.mode == 'RGBA':
                 bg = Image.new('RGB', img.size, 'white')
                 bg.paste(img, mask=img.split()[3])
                 img = bg
             elif img.mode not in ['RGB', 'L']:
                 img = img.convert('RGB')
-                
+                  # Max dimensions for thumbnail
             MAX_SIZE = (1920, 1920)
             img.thumbnail(MAX_SIZE, Image.LANCZOS)
             
+            # Optimize based on format
             format_options = {
                 'JPEG': {'format': 'JPEG', 'quality': 85, 'optimize': True},
                 'PNG': {'format': 'PNG', 'optimize': True},
@@ -140,9 +144,8 @@ def create_ticket():
         status_id=pending_status.id
     )
     db.session.add(ticket)
-    db.session.flush()  # Get ticket ID before commit
-    
-    # Handle file attachments
+    db.session.flush()  # Получаем ID заявки до коммита
+      # Обработка вложений
     files = request.files.getlist('attachments')
     attachments = []
     errors = []
@@ -169,7 +172,7 @@ def create_ticket():
     
     db.session.commit()
     
-    # Prepare notification message
+    # Формируем расширенное уведомление
     customer_name = user.username
     customer_email = user.email
     company = getattr(user, 'company', None) or 'Не указана'
@@ -266,7 +269,7 @@ def assign_ticket(ticket_id):
     
     db.session.commit()
     
-    # Send notification about assignment
+    # Уведомление о назначении исполнителя
     msg = f"<b>Заявка #{ticket.id}</b> назначена исполнителю: <b>{agent.username}</b>"
     send_telegram_message(msg)
     
@@ -297,10 +300,10 @@ def update_ticket_status(ticket_id):
     
     db.session.commit()
     
-    # Send notification about ticket closure
+    # Уведомление о закрытии заявки
     if data['status'] == 'Closed':
-        msg = f"<b>Заявка #{ticket.id}</b> закрыта!\n"\
-              f"Тема: {ticket.title}"
+        msg = f"<b>Заявка #{ticket.id}</b> закрыта!"\
+              f"\nТема: {ticket.title}"
         send_telegram_message(msg)
     
     return jsonify(ticket.to_dict())

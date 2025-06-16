@@ -9,6 +9,7 @@ class Ticket(db.Model):
     title = db.Column(db.String(200), nullable=False)
     description = db.Column(db.Text, nullable=False)
     priority = db.Column(db.String(20), nullable=False, default='Medium')  # Low, Medium, High, Critical
+    attachments = db.Column(db.JSON, nullable=True)  # Store filenames as JSON array
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     closed_at = db.Column(db.DateTime, nullable=True)
@@ -28,6 +29,7 @@ class Ticket(db.Model):
             'title': self.title,
             'description': self.description,
             'priority': self.priority,
+            'attachments': self.attachments or [],
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
             'closed_at': self.closed_at.isoformat() if self.closed_at else None,

@@ -10,7 +10,6 @@ import { Avatar, AvatarFallback } from '@/ui/avatar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/ui/select';
 import { Alert, AlertDescription } from '@/ui/alert';
 import { Separator } from '@/ui/separator';
-import DOMPurify from 'dompurify';
 import {
   ArrowLeft,
   Send,
