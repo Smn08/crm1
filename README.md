@@ -157,3 +157,28 @@ pnpm run dev --host
 ## Лицензия
 
 Проект распространяется для некоммерческого использования. Для коммерческого использования требуется разрешение (см. LICENSE.txt).
+
+
+flowchart LR
+  %% Сущности
+  Dev["Разработчик"]
+  GitLab["GitLab<br/>(репозиторий, CI)"]
+  Runner["GitLab Runner<br/>(выполнение пайплайна)"]
+  Registry[[Yandex Container Registry<br/>(образы)]]
+  K8s["Kubernetes<br/>(развёртывание)"]
+  Dojo["DefectDojo / Security Dashboard<br/>(отчёты и аналитика)"]
+
+  %% Потоки данных (стрелки с подписями)
+  Dev -->|push / commit| GitLab
+  GitLab -->|CI jobs / pipeline| Runner
+  Runner -->|build → image| Registry
+  Runner -->|SAST / SCA / DAST → отчёты| Dojo
+  Registry -->|pull images| K8s
+  K8s -->|runtime logs / метрики| Dojo
+  Dojo -->|аналитика / оповещения| GitLab
+
+  %% Стили (опционально)
+  classDef actor fill:#f9f,stroke:#333,stroke-width:1px;
+  classDef service fill:#bbf,stroke:#333,stroke-width:1px;
+  class Dev actor;
+  class GitLab,Runner,Registry,K8s,Dojo service;
